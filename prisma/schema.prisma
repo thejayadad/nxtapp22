@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  availabilities Availability[]
+  events        Event[]
+  bookings      Booking[]
+  accounts      Account[]
+  sessions      Session[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Availability {
+  id           String      @id @default(cuid())
+  userEmail    String      // Foreign key to User email
+  day          String      // Day of the week as a string (e.g., "Monday")
+  start        Int         // Start time in minutes (e.g., 540 for 9:00 AM)
+  finish       Int         // End time in minutes (e.g., 1020 for 5:00 PM)
+  isAvailable  Boolean     @default(false) // Defaults to unavailable
+  user         User        @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  bookings     Booking[]   // Reverse relation to Booking
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Event {
+  id          String      @id @default(cuid())
+  category    String
+  color       String?
+  name        String?     // Event name (required)
+  duration    Int?        // Duration in minutes
+  location    String?     // Optional location
+  price       Int?        // Optional price
+  active      Boolean     @default(true) // Whether the event is active
+  description String?     // Optional description
+  userEmail   String      // Foreign key to User email
+
+  user        User        @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  bookings    Booking[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Booking {
+  id           String         @id @default(cuid())
+  userEmail    String         // Foreign key to User email
+  eventId      String         // Foreign key to Event
+  availabilityId String?      // Optionally link to specific availability
+  guestName    String
+  guestEmail   String
+  guestNotes   String
+  when         DateTime
+  user         User           @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  availability Availability?  @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
